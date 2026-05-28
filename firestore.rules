@@ -1,0 +1,64 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── users ──────────────────────────────────────────────
+    match /users/{uid} {
+      allow read:  if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid;
+      // admin อ่านได้ทุก user
+      allow read:  if request.auth != null
+                   && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ── jobs ───────────────────────────────────────────────
+    match /jobs/{jobId} {
+      allow read:   if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if false;
+    }
+
+    // ── auctions ───────────────────────────────────────────
+    match /auctions/{auctionId} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // ── platform_settings ──────────────────────────────────
+    match /platform_settings/{doc} {
+      allow read:  if true;
+      allow write: if request.auth != null
+                   && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ── wallet_deposits ────────────────────────────────────
+    match /wallet_deposits/{docId} {
+      allow read:  if request.auth != null &&
+                   (resource.data.uid == request.auth.uid ||
+                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      allow write: if false; // เขียนผ่าน Cloud Function เท่านั้น
+    }
+
+    // ── withdraw_requests ──────────────────────────────────
+    match /withdraw_requests/{docId} {
+      allow read:  if request.auth != null &&
+                   (resource.data.uid == request.auth.uid ||
+                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      allow create: if request.auth != null && request.data.uid == request.auth.uid;
+      allow update: if request.auth != null &&
+                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow delete: if false;
+    }
+
+    // ── disputes ───────────────────────────────────────────
+    match /disputes/{docId} {
+      allow read:  if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null &&
+                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow delete: if false;
+    }
+
+  }
+}
